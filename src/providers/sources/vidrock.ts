@@ -8,7 +8,16 @@ function base64Encode(input: string): string {
     // @ts-ignore
     if (typeof btoa === 'function') return btoa(input);
   } catch {}
-  return Buffer.from(input, 'utf-8').toString('base64');
+  const nodeBuffer = (globalThis as any)?.Buffer;
+  if (nodeBuffer && typeof nodeBuffer.from === 'function') {
+    return nodeBuffer.from(input, 'utf-8').toString('base64');
+  }
+  // Fallback (very limited): encode as UTF-8 bytes and manual base64
+  const utf8 = new TextEncoder().encode(input);
+  let binary = '';
+  for (let i = 0; i < utf8.length; i++) binary += String.fromCharCode(utf8[i]);
+  // @ts-ignore atob/btoa may not exist in some runtimes
+  return typeof btoa === 'function' ? btoa(binary) : '';
 }
 
 function encodeTmdbId(tmdbId: number | string): string {
@@ -41,9 +50,11 @@ type VidrockResponse = {
 
 function urlsFromVidrock(data: VidrockResponse): string[] {
   const urls: string[] = [];
-  for (const key of ['source1', 'source2', 'source3', 'source4']) {
-    const u = (data as any)?.[key]?.url;
-    if (u && typeof u === 'string') urls.push(u);
+  for (const [key, value] of Object.entries(data)) {
+    if (/^source\d+$/i.test(key)) {
+      const u = (value as any)?.url;
+      if (u && typeof u === 'string') urls.push(u);
+    }
   }
   return urls;
 }
@@ -57,6 +68,7 @@ async function scrapeMovie(ctx: MovieScrapeContext): Promise<SourcererOutput> {
   const stream = urls.map((u, idx) => {
     const id = `vidrock-${idx + 1}`;
     const isHls = /\.m3u8(\b|$)/i.test(u);
+    const requiredHeaders = { Referer: 'https://vidrock.net/', Origin: 'https://vidrock.net' } as const;
     if (isHls) {
       return {
         id,
@@ -64,6 +76,7 @@ async function scrapeMovie(ctx: MovieScrapeContext): Promise<SourcererOutput> {
         playlist: u,
         flags: [flags.CORS_ALLOWED],
         captions: [],
+        headers: { ...requiredHeaders },
       };
     }
     return {
@@ -72,6 +85,7 @@ async function scrapeMovie(ctx: MovieScrapeContext): Promise<SourcererOutput> {
       qualities: { unknown: { type: 'mp4' as const, url: u } },
       flags: [flags.CORS_ALLOWED],
       captions: [],
+      headers: { ...requiredHeaders },
     };
   });
 
@@ -87,6 +101,7 @@ async function scrapeShow(ctx: ShowScrapeContext): Promise<SourcererOutput> {
   const stream = urls.map((u, idx) => {
     const id = `vidrock-${idx + 1}`;
     const isHls = /\.m3u8(\b|$)/i.test(u);
+    const requiredHeaders = { Referer: 'https://vidrock.net/', Origin: 'https://vidrock.net' } as const;
     if (isHls) {
       return {
         id,
@@ -94,6 +109,7 @@ async function scrapeShow(ctx: ShowScrapeContext): Promise<SourcererOutput> {
         playlist: u,
         flags: [flags.CORS_ALLOWED],
         captions: [],
+        headers: { ...requiredHeaders },
       };
     }
     return {
@@ -102,6 +118,7 @@ async function scrapeShow(ctx: ShowScrapeContext): Promise<SourcererOutput> {
       qualities: { unknown: { type: 'mp4' as const, url: u } },
       flags: [flags.CORS_ALLOWED],
       captions: [],
+      headers: { ...requiredHeaders },
     };
   });
 
