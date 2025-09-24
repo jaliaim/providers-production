@@ -70,7 +70,7 @@ import { vidrockScraper } from './sources/vidrock';
 import { hydrahdScraper } from './sources/hydrahd';
 
 export function gatherAllSources(): Array<Sourcerer> {
-  // Enable Vidrock and HydraHD
+  // Register Vidrock and Hydra
   return [vidrockScraper, hydrahdScraper];
 }
 
