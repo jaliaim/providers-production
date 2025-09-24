@@ -5,8 +5,8 @@ import { createM3U8ProxyUrl } from '@/utils/proxy';
 import { MovieScrapeContext, ShowScrapeContext } from '@/utils/context';
 
 const HYDRA_HEADERS = {
-  Referer: 'https://hydrahd.io/',
-  Origin: 'https://hydrahd.io',
+  Referer: 'https://hydrahd.io/movie/194941-watch-nobody-2-2025-online',
+  Origin: 'https://hydrahd.io/movie/194941-watch-nobody-2-2025-online',
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
   'Sec-Fetch-Dest': 'iframe',
   'Sec-Fetch-Mode': 'navigate',
