@@ -12,7 +12,9 @@ export default defineConfig((env) => ({
   plugins: [
     env.mode !== 'test' && eslintPlugin(),
     dts({
-      rollupTypes: true,
+      // Avoid API Extractor rollup to prevent TS 5.7 / resolver issues
+      rollupTypes: false,
+      insertTypesEntry: true,
     }),
   ],
   css: {
