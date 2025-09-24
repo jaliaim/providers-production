@@ -68,10 +68,11 @@ import { warezPlayerScraper } from './embeds/warezcdn/warezplayer';
 import { zunimeEmbeds } from './embeds/zunime';
 import { vidrockScraper } from './sources/vidrock';
 import { hydrahdScraper } from './sources/hydrahd';
+import { cosmicScraper } from './sources/cosmic';
 
 export function gatherAllSources(): Array<Sourcerer> {
-  // Register Vidrock and Hydra
-  return [vidrockScraper, hydrahdScraper];
+  // Register Vidrock, Hydra and Cosmic
+  return [vidrockScraper, hydrahdScraper, cosmicScraper];
 }
 
 export function gatherAllEmbeds(): Array<Embed> {
