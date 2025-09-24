@@ -108,15 +108,16 @@ export async function runAllProviders(list: ProviderList, ops: ProviderRunnerOpt
     }
     if (!output) throw new Error('Invalid media type');
 
-    // return stream is there are any
-    if (output.stream?.[0]) {
-      const playableStream = await validatePlayableStream(output.stream[0], ops, source.id);
-      if (!playableStream) throw new NotFoundError('No streams found');
-
-      return {
-        sourceId: source.id,
-        stream: playableStream,
-      };
+    // return stream if there are any: validate all candidates in order and pick the first playable
+    if (output.stream && output.stream.length > 0) {
+      const validated = await validatePlayableStreams(output.stream, ops, source.id);
+      if (validated.length > 0) {
+        return {
+          sourceId: source.id,
+          stream: validated[0],
+        };
+      }
+      // If none validated, continue to embeds below
     }
 
     // filter disabled and run embed scrapers on listed embeds
