@@ -1,7 +1,6 @@
 // import { alphaScraper, deltaScraper } from '@/providers/embeds/nsbx';
 // import { astraScraper, novaScraper, orionScraper } from '@/providers/embeds/whvx';
 import { bombtheirishScraper } from '@/providers/archive/sources/bombtheirish';
-import { vidrockScraper } from '@/providers/sources/vidrock';
 import { warezcdnembedMp4Scraper } from '@/providers/embeds/warezcdn/mp4';
 import { Stream } from '@/providers/streams';
 import { IndividualEmbedRunnerOptions } from '@/runners/individualRunner';
@@ -9,7 +8,6 @@ import { ProviderRunnerOptions } from '@/runners/runner';
 
 const SKIP_VALIDATION_CHECK_IDS = [
   warezcdnembedMp4Scraper.id,
-  vidrockScraper.id,
   // deltaScraper.id,
   // alphaScraper.id,
   // novaScraper.id,

@@ -1,22 +1,23 @@
 import { makeSourcerer, SourcererOutput } from '@/providers/base';
 import { flags } from '@/entrypoint/utils/targets';
+import { createM3U8ProxyUrl } from '@/utils/proxy';
 import { MovieScrapeContext, ShowScrapeContext } from '@/utils/context';
 
 function base64Encode(input: string): string {
-  // Use global btoa if available (browser), otherwise Node Buffer
+
   try {
-    // @ts-ignore
+    
     if (typeof btoa === 'function') return btoa(input);
   } catch {}
   const nodeBuffer = (globalThis as any)?.Buffer;
   if (nodeBuffer && typeof nodeBuffer.from === 'function') {
     return nodeBuffer.from(input, 'utf-8').toString('base64');
   }
-  // Fallback (very limited): encode as UTF-8 bytes and manual base64
+  
   const utf8 = new TextEncoder().encode(input);
   let binary = '';
   for (let i = 0; i < utf8.length; i++) binary += String.fromCharCode(utf8[i]);
-  // @ts-ignore atob/btoa may not exist in some runtimes
+  
   return typeof btoa === 'function' ? btoa(binary) : '';
 }
 
@@ -68,15 +69,13 @@ async function scrapeMovie(ctx: MovieScrapeContext): Promise<SourcererOutput> {
   const stream = urls.map((u, idx) => {
     const id = `vidrock-${idx + 1}`;
     const isHls = /\.m3u8(\b|$)/i.test(u);
-    const requiredHeaders = { Referer: 'https://vidrock.net/', Origin: 'https://vidrock.net' } as const;
     if (isHls) {
       return {
         id,
         type: 'hls' as const,
-        playlist: u,
+        playlist: createM3U8ProxyUrl(u, { Referer: 'https://vidrock.net/', Origin: 'https://vidrock.net' }),
         flags: [flags.CORS_ALLOWED],
         captions: [],
-        headers: { ...requiredHeaders },
       };
     }
     return {
@@ -85,7 +84,6 @@ async function scrapeMovie(ctx: MovieScrapeContext): Promise<SourcererOutput> {
       qualities: { unknown: { type: 'mp4' as const, url: u } },
       flags: [flags.CORS_ALLOWED],
       captions: [],
-      headers: { ...requiredHeaders },
     };
   });
 
@@ -101,15 +99,13 @@ async function scrapeShow(ctx: ShowScrapeContext): Promise<SourcererOutput> {
   const stream = urls.map((u, idx) => {
     const id = `vidrock-${idx + 1}`;
     const isHls = /\.m3u8(\b|$)/i.test(u);
-    const requiredHeaders = { Referer: 'https://vidrock.net/', Origin: 'https://vidrock.net' } as const;
     if (isHls) {
       return {
         id,
         type: 'hls' as const,
-        playlist: u,
+        playlist: createM3U8ProxyUrl(u, { Referer: 'https://vidrock.net/', Origin: 'https://vidrock.net' }),
         flags: [flags.CORS_ALLOWED],
         captions: [],
-        headers: { ...requiredHeaders },
       };
     }
     return {
@@ -118,7 +114,6 @@ async function scrapeShow(ctx: ShowScrapeContext): Promise<SourcererOutput> {
       qualities: { unknown: { type: 'mp4' as const, url: u } },
       flags: [flags.CORS_ALLOWED],
       captions: [],
-      headers: { ...requiredHeaders },
     };
   });
 
