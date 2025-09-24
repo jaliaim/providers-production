@@ -1,6 +1,5 @@
 import { makeSourcerer, SourcererOutput } from '@/providers/base';
 import { flags } from '@/entrypoint/utils/targets';
-import { createM3U8ProxyUrl } from '@/utils/proxy';
 import { MovieScrapeContext, ShowScrapeContext } from '@/utils/context';
 
 function base64Encode(input: string): string {
@@ -60,23 +59,41 @@ function urlsFromVidrock(data: VidrockResponse): string[] {
   return urls;
 }
 
+function headerCandidates(url: string): Record<string, string>[] {
+  // Vidrock requires vidrock.net as referer/origin
+  return [{ Referer: 'https://vidrock.net/', Origin: 'https://vidrock.net' }];
+}
+
+async function chooseHeadersFor(url: string, ctx: MovieScrapeContext | ShowScrapeContext): Promise<{ ok: boolean; headers: Record<string, string> }> {
+  for (const headers of headerCandidates(url)) {
+    try {
+      const res = await ctx.proxiedFetcher.full(url, { method: 'GET', headers });
+      if (res.statusCode >= 200 && res.statusCode < 400) return { ok: true, headers };
+    } catch {}
+  }
+  return { ok: false, headers: {} };
+}
+
 async function scrapeMovie(ctx: MovieScrapeContext): Promise<SourcererOutput> {
   const encoded = encodeTmdbId(ctx.media.tmdbId);
   const url = `https://vidrock.net/api/movie/${encoded}`;
   const data = await ctx.fetcher<VidrockResponse>(url);
 
   const urls = urlsFromVidrock(data);
-  const candidates = urls.map((u, idx) => {
+  const candidates = await Promise.all(urls.map(async (u, idx) => {
     const id = `vidrock-${idx + 1}`;
     const isHlsHeuristic = /\.m3u8(\b|$)/i.test(u) || /\/playlist\//i.test(u) || /\/proxy\//i.test(u);
     if (isHlsHeuristic) {
+      const { ok, headers } = await chooseHeadersFor(u, ctx);
       return {
         id,
         type: 'hls' as const,
-        playlist: createM3U8ProxyUrl(u, { Referer: 'https://vidrock.net/', Origin: 'https://vidrock.net' }),
+        playlist: u,
         flags: [flags.CORS_ALLOWED],
         captions: [],
-        __isHls: true as const,
+        headers,
+        __isHls: true,
+        __ok: ok,
       } as const;
     }
     return {
@@ -85,13 +102,18 @@ async function scrapeMovie(ctx: MovieScrapeContext): Promise<SourcererOutput> {
       qualities: { unknown: { type: 'mp4' as const, url: u } },
       flags: [flags.CORS_ALLOWED],
       captions: [],
-      __isHls: false as const,
+      __isHls: false,
+      __ok: false,
     } as const;
-  });
-  // Prefer HLS first so validation checks the most likely playable one
+  }));
+  // Prefer HLS first, then playable probes first
   const stream = candidates
-    .sort((a, b) => (a.__isHls === b.__isHls ? 0 : a.__isHls ? -1 : 1))
-    .map(({ __isHls, ...s }) => s as any);
+    .sort((a, b) => {
+      if (a.__isHls !== b.__isHls) return a.__isHls ? -1 : 1;
+      if (a.__ok !== b.__ok) return a.__ok ? -1 : 1;
+      return 0;
+    })
+    .map(({ __isHls, __ok, ...s }) => s as any);
 
   return { embeds: [], stream };
 }
@@ -102,17 +124,20 @@ async function scrapeShow(ctx: ShowScrapeContext): Promise<SourcererOutput> {
   const data = await ctx.fetcher<VidrockResponse>(url);
 
   const urls = urlsFromVidrock(data);
-  const candidates = urls.map((u, idx) => {
+  const candidates = await Promise.all(urls.map(async (u, idx) => {
     const id = `vidrock-${idx + 1}`;
     const isHlsHeuristic = /\.m3u8(\b|$)/i.test(u) || /\/playlist\//i.test(u) || /\/proxy\//i.test(u);
     if (isHlsHeuristic) {
+      const { ok, headers } = await chooseHeadersFor(u, ctx);
       return {
         id,
         type: 'hls' as const,
-        playlist: createM3U8ProxyUrl(u, { Referer: 'https://vidrock.net/', Origin: 'https://vidrock.net' }),
+        playlist: u,
         flags: [flags.CORS_ALLOWED],
         captions: [],
-        __isHls: true as const,
+        headers,
+        __isHls: true,
+        __ok: ok,
       } as const;
     }
     return {
@@ -121,12 +146,17 @@ async function scrapeShow(ctx: ShowScrapeContext): Promise<SourcererOutput> {
       qualities: { unknown: { type: 'mp4' as const, url: u } },
       flags: [flags.CORS_ALLOWED],
       captions: [],
-      __isHls: false as const,
+      __isHls: false,
+      __ok: false,
     } as const;
-  });
+  }));
   const stream = candidates
-    .sort((a, b) => (a.__isHls === b.__isHls ? 0 : a.__isHls ? -1 : 1))
-    .map(({ __isHls, ...s }) => s as any);
+    .sort((a, b) => {
+      if (a.__isHls !== b.__isHls) return a.__isHls ? -1 : 1;
+      if (a.__ok !== b.__ok) return a.__ok ? -1 : 1;
+      return 0;
+    })
+    .map(({ __isHls, __ok, ...s }) => s as any);
 
   return { embeds: [], stream };
 }

@@ -67,10 +67,11 @@ import { warezcdnembedMp4Scraper } from './embeds/warezcdn/mp4';
 import { warezPlayerScraper } from './embeds/warezcdn/warezplayer';
 import { zunimeEmbeds } from './embeds/zunime';
 import { vidrockScraper } from './sources/vidrock';
+import { hydrahdScraper } from './sources/hydrahd';
 
 export function gatherAllSources(): Array<Sourcerer> {
-  // Restrict to Vidrock only as requested
-  return [vidrockScraper];
+  // Enable Vidrock and HydraHD
+  return [vidrockScraper, hydrahdScraper];
 }
 
 export function gatherAllEmbeds(): Array<Embed> {
