@@ -66,17 +66,18 @@ async function scrapeMovie(ctx: MovieScrapeContext): Promise<SourcererOutput> {
   const data = await ctx.fetcher<VidrockResponse>(url);
 
   const urls = urlsFromVidrock(data);
-  const stream = urls.map((u, idx) => {
+  const candidates = urls.map((u, idx) => {
     const id = `vidrock-${idx + 1}`;
-    const isHls = /\.m3u8(\b|$)/i.test(u);
-    if (isHls) {
+    const isHlsHeuristic = /\.m3u8(\b|$)/i.test(u) || /\/playlist\//i.test(u) || /\/proxy\//i.test(u);
+    if (isHlsHeuristic) {
       return {
         id,
         type: 'hls' as const,
         playlist: createM3U8ProxyUrl(u, { Referer: 'https://vidrock.net/', Origin: 'https://vidrock.net' }),
         flags: [flags.CORS_ALLOWED],
         captions: [],
-      };
+        __isHls: true as const,
+      } as const;
     }
     return {
       id,
@@ -84,8 +85,13 @@ async function scrapeMovie(ctx: MovieScrapeContext): Promise<SourcererOutput> {
       qualities: { unknown: { type: 'mp4' as const, url: u } },
       flags: [flags.CORS_ALLOWED],
       captions: [],
-    };
+      __isHls: false as const,
+    } as const;
   });
+  // Prefer HLS first so validation checks the most likely playable one
+  const stream = candidates
+    .sort((a, b) => (a.__isHls === b.__isHls ? 0 : a.__isHls ? -1 : 1))
+    .map(({ __isHls, ...s }) => s as any);
 
   return { embeds: [], stream };
 }
@@ -96,17 +102,18 @@ async function scrapeShow(ctx: ShowScrapeContext): Promise<SourcererOutput> {
   const data = await ctx.fetcher<VidrockResponse>(url);
 
   const urls = urlsFromVidrock(data);
-  const stream = urls.map((u, idx) => {
+  const candidates = urls.map((u, idx) => {
     const id = `vidrock-${idx + 1}`;
-    const isHls = /\.m3u8(\b|$)/i.test(u);
-    if (isHls) {
+    const isHlsHeuristic = /\.m3u8(\b|$)/i.test(u) || /\/playlist\//i.test(u) || /\/proxy\//i.test(u);
+    if (isHlsHeuristic) {
       return {
         id,
         type: 'hls' as const,
         playlist: createM3U8ProxyUrl(u, { Referer: 'https://vidrock.net/', Origin: 'https://vidrock.net' }),
         flags: [flags.CORS_ALLOWED],
         captions: [],
-      };
+        __isHls: true as const,
+      } as const;
     }
     return {
       id,
@@ -114,8 +121,12 @@ async function scrapeShow(ctx: ShowScrapeContext): Promise<SourcererOutput> {
       qualities: { unknown: { type: 'mp4' as const, url: u } },
       flags: [flags.CORS_ALLOWED],
       captions: [],
-    };
+      __isHls: false as const,
+    } as const;
   });
+  const stream = candidates
+    .sort((a, b) => (a.__isHls === b.__isHls ? 0 : a.__isHls ? -1 : 1))
+    .map(({ __isHls, ...s }) => s as any);
 
   return { embeds: [], stream };
 }
