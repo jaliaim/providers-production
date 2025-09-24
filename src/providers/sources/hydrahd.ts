@@ -112,8 +112,8 @@ async function scrapeShow(ctx: ShowScrapeContext): Promise<SourcererOutput> {
 }
 
 export const hydrahdScraper = makeSourcerer({
-  id: 'hydrahd',
-  name: 'HydraHD',
+  id: 'hydra',
+  name: 'Hydra',
   rank: 20,
   flags: [flags.CORS_ALLOWED],
   scrapeMovie,
