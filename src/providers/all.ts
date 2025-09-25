@@ -14,6 +14,7 @@ import { tugaflixScraper } from '@/providers/sources/tugaflix';
 import { vidsrcScraper } from '@/providers/sources/vidsrc';
 import { vidsrcvipScraper } from '@/providers/sources/vidsrcvip';
 import { zoechipScraper } from '@/providers/sources/zoechip';
+import { mappleTvScraper } from '@/providers/sources/mapple';
 
 import { AnimetsuEmbeds } from './embeds/animetsu';
 import {
@@ -72,7 +73,7 @@ import { cosmicScraper } from './sources/cosmic';
 
 export function gatherAllSources(): Array<Sourcerer> {
   // Register Vidrock, Hydra and Cosmic
-  return [vidrockScraper, hydrahdScraper, cosmicScraper];
+  return [vidrockScraper, hydrahdScraper, cosmicScraper, mappleTvScraper];
 }
 
 export function gatherAllEmbeds(): Array<Embed> {

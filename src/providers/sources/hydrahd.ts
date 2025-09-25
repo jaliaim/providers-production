@@ -15,11 +15,11 @@ const HYDRA_HEADERS = {
 };
 
 function extractM3U8FromHtml(html: string): string | null {
-  // Try a direct m3u8 pattern first
+  
   const direct = html.match(/https?:\/\/[^"'\s]+\.m3u8/);
   if (direct) return direct[0];
 
-  // Fallback: the sample embeds a JS const quality = "...m3u8";
+  
   const jsVar = html.match(/const\s+quality\s*=\s*"(https?:\\\/\\\/[^\"]+\.m3u8)"/);
   if (jsVar) {
     try {
@@ -35,13 +35,13 @@ function extractSubtitleUrlsFromHtml(html: string): { url: string; label: string
   const match = html.match(/const\s+subtitles\s*=\s*\[(.*?)\];/s);
   if (!match) return [];
   try {
-    // Rebuild JSON array by wrapping in [] and normalizing quotes
+   
     const raw = `[${match[1]}]`;
-    // The snippet already appears JSON; try direct parse first
+    
     const arr = JSON.parse(raw);
     if (Array.isArray(arr)) return arr.filter((x) => x && x.file && x.label);
   } catch {}
-  // Fallback: naive URL extraction
+
   const urls: { url: string; label: string }[] = [];
   const re = /\{\s*"file"\s*:\s*"(https?:\\\/\\\/[^\"]+)"\s*,\s*"label"\s*:\s*"([^"]+)"\s*\}/g;
   let m: RegExpExecArray | null;
