@@ -71,10 +71,11 @@ import { vidrockScraper } from './sources/vidrock';
 import { hydrahdScraper } from './sources/hydrahd';
 import { cosmicScraper } from './sources/cosmic';
 import { easyScraper } from './sources/easy';
+import { oneoneoneScraper } from './sources/111movies';
 
 export function gatherAllSources(): Array<Sourcerer> {
   // Register Vidrock, Hydra and Cosmic
-  return [vidrockScraper, cosmicScraper, mappleTvScraper, easyScraper];
+  return [vidrockScraper, cosmicScraper, mappleTvScraper, easyScraper, oneoneoneScraper,];
 }
 
 export function gatherAllEmbeds(): Array<Embed> {

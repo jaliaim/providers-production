@@ -38,9 +38,9 @@ const comboScraper = async (ctx: MovieScrapeContext | ShowScrapeContext): Promis
   };
 };
 
-export const vidfastScraper = makeSourcerer({
+export const oneoneoneScraper = makeSourcerer({
   id: '111movie',
-  name: '111Movies',
+  name: 'Rocket',
   rank: 400,
   flags: [],
   scrapeMovie: comboScraper,
