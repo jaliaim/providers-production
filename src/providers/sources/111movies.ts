@@ -14,7 +14,7 @@ const comboScraper = async (ctx: MovieScrapeContext | ShowScrapeContext): Promis
     throw new Error('Unsupported media type');
   }
 
-  const scrapeUrl = `https://scraper.lordflix.club/api/scrape?url=https://111movies.com${urlPath}&waitForDomain="https://nebulavault823.xyz`;
+  const scrapeUrl = `https://scrape.lordflix.club/api/scrape?url=https://111movies.com${urlPath}&waitForDomain="https://nebulavault823.xyz`;
 
   const networkLog = await ctx.fetcher<any>(scrapeUrl);
 

@@ -70,11 +70,12 @@ import { zunimeEmbeds } from './embeds/zunime';
 import { vidrockScraper } from './sources/vidrock';
 import { hydrahdScraper } from './sources/hydrahd';
 import { cosmicScraper } from './sources/cosmic';
+import { fridayScraper } from './sources/friday';
 import { easyScraper } from './sources/easy';
 import { oneoneoneScraper } from './sources/111movies';
 
 export function gatherAllSources(): Array<Sourcerer> {
-  return [vidrockScraper, cosmicScraper, mappleTvScraper, easyScraper, oneoneoneScraper,];
+  return [vidrockScraper, cosmicScraper, fridayScraper, mappleTvScraper, easyScraper, oneoneoneScraper,];
 }
 
 export function gatherAllEmbeds(): Array<Embed> {
