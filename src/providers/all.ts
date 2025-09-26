@@ -70,10 +70,11 @@ import { zunimeEmbeds } from './embeds/zunime';
 import { vidrockScraper } from './sources/vidrock';
 import { hydrahdScraper } from './sources/hydrahd';
 import { cosmicScraper } from './sources/cosmic';
+import { easyScraper } from './sources/easy';
 
 export function gatherAllSources(): Array<Sourcerer> {
   // Register Vidrock, Hydra and Cosmic
-  return [vidrockScraper, hydrahdScraper, cosmicScraper, mappleTvScraper];
+  return [vidrockScraper, cosmicScraper, mappleTvScraper, easyScraper];
 }
 
 export function gatherAllEmbeds(): Array<Embed> {
