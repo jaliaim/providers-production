@@ -42,7 +42,7 @@ export const easyScraper = makeSourcerer({
   id: 'easy',
   name: 'Easy',
   rank: 6,
-  flags: [],
+  flags: [flags.CORS_ALLOWED],
   scrapeMovie: comboScraper,
   scrapeShow: comboScraper,
 });
