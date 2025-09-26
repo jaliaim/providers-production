@@ -74,7 +74,6 @@ import { easyScraper } from './sources/easy';
 import { oneoneoneScraper } from './sources/111movies';
 
 export function gatherAllSources(): Array<Sourcerer> {
-  // Register Vidrock, Hydra and Cosmic
   return [vidrockScraper, cosmicScraper, mappleTvScraper, easyScraper, oneoneoneScraper,];
 }
 
