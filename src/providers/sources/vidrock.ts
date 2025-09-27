@@ -122,7 +122,7 @@ async function scrapeShow(ctx: ShowScrapeContext): Promise<SourcererOutput> {
 
 export const vidrockScraper = makeSourcerer({
   id: 'vidrock',
-  name: 'Vidrock',
+  name: 'Zorin',
   rank: 3,
   flags: [flags.CORS_ALLOWED],
   scrapeMovie,

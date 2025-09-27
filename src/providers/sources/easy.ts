@@ -40,7 +40,7 @@ const comboScraper = async (ctx: MovieScrapeContext | ShowScrapeContext): Promis
 
 export const easyScraper = makeSourcerer({
   id: 'easy',
-  name: 'Easy',
+  name: 'Makcu',
   rank: 6,
   flags: [flags.CORS_ALLOWED],
   scrapeMovie: comboScraper,

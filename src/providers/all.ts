@@ -75,7 +75,7 @@ import { easyScraper } from './sources/easy';
 import { oneoneoneScraper } from './sources/111movies';
 
 export function gatherAllSources(): Array<Sourcerer> {
-  return [vidrockScraper, cosmicScraper, fridayScraper, mappleTvScraper, easyScraper, oneoneoneScraper,];
+  return [vidrockScraper, mappleTvScraper, easyScraper,];
 }
 
 export function gatherAllEmbeds(): Array<Embed> {

@@ -89,8 +89,8 @@ async function comboScraper(ctx: ShowScrapeContext | MovieScrapeContext): Promis
 
 export const mappleTvScraper = makeSourcerer({
   id: 'mappletv',
-  name: 'Mapple',
-  rank: 5,
+  name: 'Kirk (4K)',
+  rank: 10,
   flags: [flags.CORS_ALLOWED],
   scrapeMovie: comboScraper,
   scrapeShow: comboScraper,
