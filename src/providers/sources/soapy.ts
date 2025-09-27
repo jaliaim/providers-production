@@ -54,7 +54,23 @@ async function scrapeMovie(ctx: MovieScrapeContext): Promise<SourcererOutput> {
   // 2) load streameeeeee embed html
   const embedOrigin = new URL(iframeUrl).origin;
   const STREAM_HEADERS = { Referer: `${embedOrigin}/`, Origin: embedOrigin } as Record<string, string>;
-  const embedHtml = await ctx.proxiedFetcher<string>(iframeUrl, { headers: STREAM_HEADERS });
+  // fetch full response to capture set-cookie
+  const iframeRes = await ctx.proxiedFetcher.full<string>(iframeUrl, {
+    headers: {
+      ...STREAM_HEADERS,
+      'User-Agent': 'Mozilla/5.0',
+      Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'Accept-Language': 'en-US,en;q=0.9',
+    },
+    readHeaders: ['set-cookie'],
+  });
+  const embedHtml = iframeRes.body;
+  const setCookieHeader = iframeRes.headers.get('set-cookie') || '';
+  const cookie = setCookieHeader
+    .split(',')
+    .map((c) => c.split(';')[0].trim())
+    .filter((c) => c.length > 0)
+    .join('; ');
 
   const id = extractIdFromEmbedHtml(embedHtml);
   const k = extractKToken(embedHtml);
@@ -64,7 +80,13 @@ async function scrapeMovie(ctx: MovieScrapeContext): Promise<SourcererOutput> {
   const sourcesRes = await ctx.proxiedFetcher<SourcesResponse>(`/embed-1/v3/e-1/getSources`, {
     baseUrl: embedOrigin,
     query: { id, _k: k },
-    headers: STREAM_HEADERS,
+    headers: {
+      ...STREAM_HEADERS,
+      'User-Agent': 'Mozilla/5.0',
+      Accept: 'application/json, text/plain, */*',
+      'Accept-Language': 'en-US,en;q=0.9',
+      ...(cookie ? { Cookie: cookie } : {}),
+    },
   });
 
   const file = sourcesRes?.sources?.[0]?.file;
@@ -91,7 +113,10 @@ async function scrapeMovie(ctx: MovieScrapeContext): Promise<SourcererOutput> {
       {
         id: 'primary',
         type: 'hls',
-        playlist: createM3U8ProxyUrl(file, STREAM_HEADERS),
+        playlist: createM3U8ProxyUrl(file, {
+          ...STREAM_HEADERS,
+          ...(cookie ? { Cookie: cookie } : {}),
+        }),
         flags: [flags.CORS_ALLOWED],
         captions,
       },
