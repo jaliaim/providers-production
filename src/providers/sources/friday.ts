@@ -1,6 +1,7 @@
 import { flags } from '@/entrypoint/utils/targets';
 import { getCaptionTypeFromUrl, isValidLanguageCode, labelToLanguageCode } from '@/providers/captions';
 import { SourcererOutput, makeSourcerer } from '@/providers/base';
+import { createM3U8ProxyUrl } from '@/utils/proxy';
 import { MovieScrapeContext, ShowScrapeContext } from '@/utils/context';
 import { NotFoundError } from '@/utils/errors';
 
@@ -35,6 +36,7 @@ type FridaySourcesResponse = {
 };
 
 async function fridayFlow(ctx: MovieScrapeContext | ShowScrapeContext): Promise<SourcererOutput> {
+  const soapyHeaders = { Referer: 'https://soapy.to/', Origin: 'https://soapy.to' };
   // 1) search by title
   const search = await ctx.proxiedFetcher<FridaySearchResponse>(`${BASE}/search`, {
     query: { q: ctx.media.title },
@@ -71,7 +73,7 @@ async function fridayFlow(ctx: MovieScrapeContext | ShowScrapeContext): Promise<
   if (!chosen?.source) throw new NotFoundError('No server source');
 
   // 5) fetch embed html to get window._lk_db
-  const embedHtml = await ctx.proxiedFetcher<string>(chosen.source);
+  const embedHtml = await ctx.proxiedFetcher<string>(chosen.source, { headers: soapyHeaders });
   const keyParts = embedHtml.match(/window\._lk_db\s*=\s*\{\s*x:\s*"([^"]+)",\s*y:\s*"([^"]+)",\s*z:\s*"([^"]+)"\s*\}/);
   if (!keyParts) throw new NotFoundError('Failed to extract _lk_db keys');
   const k = `${keyParts[1]}${keyParts[2]}${keyParts[3]}`;
@@ -91,7 +93,7 @@ async function fridayFlow(ctx: MovieScrapeContext | ShowScrapeContext): Promise<
   const res = await ctx.proxiedFetcher<FridaySourcesResponse>(`/embed-1/v3/e-1/getSources`, {
     baseUrl: embedOrigin,
     query: { id, _k: k },
-    headers: { Referer: chosen.source, Origin: embedOrigin },
+    headers: soapyHeaders,
   });
 
   const file = res?.sources?.[0]?.file;
@@ -119,10 +121,9 @@ async function fridayFlow(ctx: MovieScrapeContext | ShowScrapeContext): Promise<
       {
         id: 'primary',
         type: 'hls',
-        playlist: file,
+        playlist: createM3U8ProxyUrl(file, soapyHeaders),
         flags: [flags.CORS_ALLOWED],
         captions: captions as any,
-        preferredHeaders: { Referer: embedOrigin, Origin: embedOrigin },
       },
     ],
   };
