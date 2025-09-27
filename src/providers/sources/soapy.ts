@@ -53,77 +53,89 @@ async function scrapeMovie(ctx: MovieScrapeContext): Promise<SourcererOutput> {
   const iframeUrl = extractIframeSrc(soapyHtml);
   if (!iframeUrl) throw new NotFoundError('No iframe found');
 
-  // 2) load streameeeeee embed html
+  // 2) load streameeeeee embed html and attempt to get sources (with retries)
   const embedOrigin = new URL(iframeUrl).origin;
   const STREAM_HEADERS = { Referer: `${embedOrigin}/`, Origin: embedOrigin } as Record<string, string>;
-  // fetch full response to capture set-cookie
-  const iframeRes = await ctx.proxiedFetcher.full<string>(iframeUrl, {
-    headers: {
-      ...STREAM_HEADERS,
-      'User-Agent': 'Mozilla/5.0',
-      Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-      'Accept-Language': 'en-US,en;q=0.9',
-    },
-    readHeaders: ['set-cookie'],
-  });
-  const embedHtml = iframeRes.body;
-  const setCookieHeader = iframeRes.headers.get('set-cookie') || '';
-  const cookie = setCookieHeader
-    .split(',')
-    .map((c) => c.split(';')[0].trim())
-    .filter((c) => c.length > 0)
-    .join('; ');
+  let file: string | null = null;
+  let captions: any[] = [];
 
-  const id = extractIdFromEmbedHtml(embedHtml);
-  const k = extractKToken(embedHtml);
-  if (!id || !k) throw new NotFoundError('Failed to extract id/_k token');
+  for (let attempt = 0; attempt < 3 && !file; attempt++) {
+    // fetch full response to capture set-cookie
+    const iframeRes = await ctx.proxiedFetcher.full<string>(iframeUrl, {
+      headers: {
+        ...STREAM_HEADERS,
+        'User-Agent': 'Mozilla/5.0',
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+      },
+      readHeaders: ['set-cookie'],
+    });
+    const embedHtml = iframeRes.body;
+    const setCookieHeader = iframeRes.headers.get('set-cookie') || '';
+    const cookie = setCookieHeader
+      .split(',')
+      .map((c) => c.split(';')[0].trim())
+      .filter((c) => c.length > 0)
+      .join('; ');
 
-  // 3) get sources
-  const sourcesRes = await ctx.proxiedFetcher<SourcesResponse>(`/embed-1/v3/e-1/getSources`, {
-    baseUrl: embedOrigin,
-    query: { id, _k: k },
-    headers: {
-      ...STREAM_HEADERS,
-      'User-Agent': 'Mozilla/5.0',
-      Accept: 'application/json, text/plain, */*',
-      'Accept-Language': 'en-US,en;q=0.9',
-      ...(cookie ? { Cookie: cookie } : {}),
-    },
-  });
+    const id = extractIdFromEmbedHtml(embedHtml);
+    const k = extractKToken(embedHtml);
+    if (!id || !k) continue;
 
-  const file = sourcesRes?.sources?.[0]?.file;
+    // 3) get sources
+    const sourcesRes = await ctx.proxiedFetcher<SourcesResponse>(`/embed-1/v3/e-1/getSources`, {
+      baseUrl: embedOrigin,
+      query: { id, _k: k },
+      headers: {
+        ...STREAM_HEADERS,
+        'User-Agent': 'Mozilla/5.0',
+        Accept: 'application/json, text/plain, */*',
+        'Accept-Language': 'en-US,en;q=0.9',
+        ...(cookie ? { Cookie: cookie } : {}),
+      },
+    });
+
+    const candidate = sourcesRes?.sources?.[0]?.file || null;
+    if (candidate) {
+      file = candidate;
+      captions = (sourcesRes?.tracks || [])
+        .map((t, i) => {
+          const language = labelToLanguageCode(t.label || '');
+          const type = getCaptionTypeFromUrl(t.file || '');
+          if (!type || !isValidLanguageCode(language)) return null;
+          return {
+            id: `soapy-${i + 1}`,
+            url: t.file,
+            type,
+            language: language!,
+            hasCorsRestrictions: true,
+          };
+        })
+        .filter((x) => x !== null) as any[];
+
+      // build and return immediately
+      return {
+        embeds: [],
+        stream: [
+          {
+            id: 'primary',
+            type: 'hls',
+            playlist: createM3U8ProxyUrl(file, {
+              ...STREAM_HEADERS,
+              ...(cookie ? { Cookie: cookie } : {}),
+            }),
+            flags: [flags.CORS_ALLOWED],
+            captions,
+          },
+        ],
+      };
+    }
+  }
+
   if (!file) throw new NotFoundError('No HLS file');
 
-  const captions = (sourcesRes?.tracks || [])
-    .map((t, i) => {
-      const language = labelToLanguageCode(t.label || '');
-      const type = getCaptionTypeFromUrl(t.file || '');
-      if (!type || !isValidLanguageCode(language)) return null;
-      return {
-        id: `soapy-${i + 1}`,
-        url: t.file,
-        type,
-        language: language!,
-        hasCorsRestrictions: true,
-      };
-    })
-    .filter((x) => x !== null) as any;
-
-  return {
-    embeds: [],
-    stream: [
-      {
-        id: 'primary',
-        type: 'hls',
-        playlist: createM3U8ProxyUrl(file, {
-          ...STREAM_HEADERS,
-          ...(cookie ? { Cookie: cookie } : {}),
-        }),
-        flags: [flags.CORS_ALLOWED],
-        captions,
-      },
-    ],
-  };
+  // fallback (should not be reached due to early return)
+  throw new NotFoundError('No HLS file');
 }
 
 export const soapyScraper = makeSourcerer({
