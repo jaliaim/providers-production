@@ -1,0 +1,110 @@
+import { flags } from '@/entrypoint/utils/targets';
+import { getCaptionTypeFromUrl, isValidLanguageCode, labelToLanguageCode } from '@/providers/captions';
+import { SourcererOutput, makeSourcerer } from '@/providers/base';
+import { MovieScrapeContext } from '@/utils/context';
+import { NotFoundError } from '@/utils/errors';
+import { createM3U8ProxyUrl } from '@/utils/proxy';
+
+const SOAPY_ORIGIN = 'https://soapy.to';
+const SOAPY_HEADERS = { Referer: `${SOAPY_ORIGIN}/`, Origin: SOAPY_ORIGIN };
+
+function extractIframeSrc(html: string): string | null {
+  const m = html.match(/<iframe[^>]+src="([^"]+)"/i);
+  return m ? m[1] : null;
+}
+
+function extractIdFromEmbedHtml(html: string): string | null {
+  const mData = html.match(/data-id=\"([A-Za-z0-9]+)\"/);
+  if (mData) return mData[1];
+  const mTitle = html.match(/File\s+#([A-Za-z0-9]+)\s+-/);
+  if (mTitle) return mTitle[1];
+  return null;
+}
+
+function extractKToken(html: string): string | null {
+  // Try multiple formats as provided
+  const meta = html.match(/<meta\s+name="_gg_fb"\s+content="([^"]+)"/i);
+  if (meta) return meta[1];
+  const win = html.match(/window\._xy_ws\s*=\s*"([^"]+)"/);
+  if (win) return win[1];
+  const comment = html.match(/<!--\s*_is_th:([^\s>]+)\s*-->/);
+  if (comment) return comment[1];
+  const dpi = html.match(/data-dpi="([^"]+)"/);
+  if (dpi) return dpi[1];
+  const nonce = html.match(/<script[^>]*nonce="([^"]+)"/i);
+  if (nonce) return nonce[1];
+  return null;
+}
+
+type SourcesResponse = {
+  sources?: Array<{ file: string; type: string }>;
+  tracks?: Array<{ file: string; label: string; kind: string }>;
+};
+
+async function scrapeMovie(ctx: MovieScrapeContext): Promise<SourcererOutput> {
+  // 1) soapy embed page for movies by tmdb id
+  const soapyUrl = `${SOAPY_ORIGIN}/embed/movies.php`;
+  const soapyHtml = await ctx.proxiedFetcher<string>(soapyUrl, {
+    query: { tmdbid: String(ctx.media.tmdbId), player: 'romio' },
+    headers: SOAPY_HEADERS,
+  });
+  const iframeUrl = extractIframeSrc(soapyHtml);
+  if (!iframeUrl) throw new NotFoundError('No iframe found');
+
+  // 2) load streameeeeee embed html
+  const embedOrigin = new URL(iframeUrl).origin;
+  const STREAM_HEADERS = { Referer: `${embedOrigin}/`, Origin: embedOrigin } as Record<string, string>;
+  const embedHtml = await ctx.proxiedFetcher<string>(iframeUrl, { headers: STREAM_HEADERS });
+
+  const id = extractIdFromEmbedHtml(embedHtml);
+  const k = extractKToken(embedHtml);
+  if (!id || !k) throw new NotFoundError('Failed to extract id/_k token');
+
+  // 3) get sources
+  const sourcesRes = await ctx.proxiedFetcher<SourcesResponse>(`/embed-1/v3/e-1/getSources`, {
+    baseUrl: embedOrigin,
+    query: { id, _k: k },
+    headers: STREAM_HEADERS,
+  });
+
+  const file = sourcesRes?.sources?.[0]?.file;
+  if (!file) throw new NotFoundError('No HLS file');
+
+  const captions = (sourcesRes?.tracks || [])
+    .map((t, i) => {
+      const language = labelToLanguageCode(t.label || '');
+      const type = getCaptionTypeFromUrl(t.file || '');
+      if (!type || !isValidLanguageCode(language)) return null;
+      return {
+        id: `soapy-${i + 1}`,
+        url: t.file,
+        type,
+        language: language!,
+        hasCorsRestrictions: true,
+      };
+    })
+    .filter((x) => x !== null) as any;
+
+  return {
+    embeds: [],
+    stream: [
+      {
+        id: 'primary',
+        type: 'hls',
+        playlist: createM3U8ProxyUrl(file, STREAM_HEADERS),
+        flags: [flags.CORS_ALLOWED],
+        captions,
+      },
+    ],
+  };
+}
+
+export const soapyScraper = makeSourcerer({
+  id: 'soapy',
+  name: 'Soapy',
+  rank: 1,
+  flags: [flags.CORS_ALLOWED],
+  scrapeMovie,
+});
+
+
