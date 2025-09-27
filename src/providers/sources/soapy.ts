@@ -27,6 +27,8 @@ function extractKToken(html: string): string | null {
   if (meta) return meta[1];
   const win = html.match(/window\._xy_ws\s*=\s*"([^"]+)"/);
   if (win) return win[1];
+  const lkdb = html.match(/window\._lk_db\s*=\s*\{\s*x:\s*"([^"]+)",\s*y:\s*"([^"]+)",\s*z:\s*"([^"]+)"\s*\}/);
+  if (lkdb) return `${lkdb[1]}${lkdb[2]}${lkdb[3]}`;
   const comment = html.match(/<!--\s*_is_th:([^\s>]+)\s*-->/);
   if (comment) return comment[1];
   const dpi = html.match(/data-dpi="([^"]+)"/);
